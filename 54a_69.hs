@@ -103,3 +103,42 @@ hbalTreeNodes c n = let minH = minHeight n
                           (gen_tree (h-1) (h-2) n [minN1..maxN1] [minN2..maxN2]) ++ 
                           (gen_tree (h-2) (h-1) n [minN2..maxN2] [minN1..maxN1])
 
+
+countLeaves :: Tree a -> Int
+countLeaves Empty = 0
+countLeaves (Branch _ Empty Empty) = 1
+countLeaves (Branch _ t1 t2) = countLeaves t1 + countLeaves t2
+
+leaves :: Tree a -> [a]
+leaves Empty = []
+leaves (Branch c Empty Empty) = [c]
+leaves (Branch c t1 t2) = leaves t1 ++ leaves t2
+
+internals :: Tree a -> [a]
+internals Empty = []
+internals (Branch _ Empty Empty) = []
+internals (Branch c t1 t2) = (c:(internals t1)) ++ (internals t2)
+
+atLevel :: Tree a -> Int -> [a]
+atLevel Empty _ = []
+atLevel (Branch c _ _) 1 = [c]
+atLevel (Branch c t1 t2) h = atLevel t1 (h-1) ++ atLevel t2 (h-1)
+
+completeBinaryTree :: Int -> Tree Char
+completeBinaryTree 0 = Empty
+completeBinaryTree 1 = (Branch 'x' Empty Empty)
+completeBinaryTree n = let h = (floor $ logBase 2 (fromIntegral (n+1))) - 1
+                           res = n - (2^(h+1)-1) in
+                         if res <= 2^h then
+                            Branch 'x' (completeBinaryTree ((n-1-res) `div` 2 + res)) (completeBinaryTree ((n-1-res) `div` 2))
+                            else Branch 'x' (completeBinaryTree (2^(h+1)-1)) (completeBinaryTree (((n-1-res) `div` 2) + (res - 2^h)))
+                         
+
+countNodes :: Tree a -> Int
+countNodes Empty = 0
+countNodes (Branch _ t1 t2) = 1 + countNodes t1 + countNodes t2
+
+isCompleteBinaryTree :: Tree a -> Bool
+isCompleteBinaryTree t = t `treeStructEq` completeBinaryTree (countNodes t)
+
+
