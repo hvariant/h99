@@ -1,3 +1,5 @@
+import Text.ParserCombinators.Parsec
+
 data Tree a = Empty | Branch a (Tree a) (Tree a) deriving (Show, Eq)
 
 leaf x = Branch x Empty Empty
@@ -141,4 +143,164 @@ countNodes (Branch _ t1 t2) = 1 + countNodes t1 + countNodes t2
 isCompleteBinaryTree :: Tree a -> Bool
 isCompleteBinaryTree t = t `treeStructEq` completeBinaryTree (countNodes t)
 
+tree64 = Branch 'n'
+                (Branch 'k'
+                        (Branch 'c'
+                                (Branch 'a' Empty Empty)
+                                (Branch 'h'
+                                        (Branch 'g'
+                                                (Branch 'e' Empty Empty)
+                                                Empty
+                                        )
+                                        Empty
+                                )
+                        )
+                        (Branch 'm' Empty Empty)
+                )
+                (Branch 'u'
+                        (Branch 'p'
+                                Empty
+                                (Branch 's'
+                                        (Branch 'q' Empty Empty)
+                                        Empty
+                                )
+                        )
+                        Empty
+                )
+
+
+layout :: Tree a -> Tree (a,(Int,Int))
+layout Empty = Empty
+layout t = iter t 1 1 (countNodes t)
+    where iter Empty _ _ _ = Empty
+          iter (Branch c t1 t2) h minX maxX = let c1 = countNodes t1 in
+                                              (Branch (c,(minX + c1,h)) (iter t1 (h+1) minX (minX + c1 - 1))
+                                                                        (iter t2 (h+1) (minX + c1 + 1) maxX))
+
+height :: Tree a -> Int
+height Empty = 0
+height (Branch _ t1 t2) = 1 + max (height t1) (height t2)
+
+
+tree65 = Branch 'n'
+                (Branch 'k'
+                        (Branch 'c'
+                                (Branch 'a' Empty Empty)
+                                (Branch 'e'
+                                        (Branch 'd' Empty Empty)
+                                        (Branch 'g' Empty Empty)
+                                )
+                        )
+                        (Branch 'm' Empty Empty)
+                )
+                (Branch 'u'
+                        (Branch 'p'
+                                Empty
+                                (Branch 'q' Empty Empty)
+                        )
+                        Empty
+                )
+
+
+minOffset Empty = 0
+minOffset (Branch (_,(o,_)) t1 t2) = minimum [o,(minOffset t1),(minOffset t2)]
+
+maxOffset Empty = 0
+maxOffset (Branch (_,(o,_)) t1 t2) = maximum [o,(maxOffset t1),(maxOffset t2)]
+
+offset x Empty = Empty
+offset x (Branch (c,(o,h)) t1 t2) = Branch (c,(o-x,h)) (offset x t1) (offset x t2)
+
+layout' :: Tree a -> Tree (a,(Int,Int))
+layout' t = let h = height t
+                width = if h < 2 then 0 else 2^(h-2)
+                t' = iter t 0 1 width
+                minO = minOffset t' in
+              offset (minO - 1) t'
+    where iter Empty _ _ _ = Empty
+          iter (Branch c t1 t2) o h w = Branch (c,(o,h)) (iter t1 (o-w) (h+1) (w `div` 2))
+                                                         (iter t2 (o+w) (h+1) (w `div` 2))
+
+
+emptyLeft :: Tree a -> Bool
+emptyLeft Empty = True
+emptyLeft (Branch _ t1 _) = t1 `treeStructEq` Empty
+
+emptyRight :: Tree a -> Bool
+emptyRight Empty = True
+emptyRight (Branch _ _ t2) = t2 `treeStructEq` Empty
+
+layout'' :: Tree a -> Tree (a,(Int,Int))
+layout'' t = let t' = iter t 0 1
+                 minO = minOffset t' in
+               offset (minO - 1) t'
+    where iter Empty _ _ = Empty
+          iter (Branch c Empty t2) o h = Branch (c,(o,h)) Empty (iter t2 (o+1) (h+1))
+          iter (Branch c t1 Empty) o h = Branch (c,(o,h)) (iter t1 (o-1) (h+1)) Empty
+          iter (Branch c t1 t2) o h = if not (emptyLeft t2) && not (emptyRight t1) then
+                                        Branch (c,(o,h)) (iter t1 (o-2) (h+1)) (iter t2 (o+2) (h+1))
+                                        else Branch (c,(o,h)) (iter t1 (o-1) (h+1)) (iter t2 (o+1) (h+1))
+
+
+
+treeToString :: Tree Char -> String
+treeToString Empty = ""
+treeToString (Branch c Empty Empty) = [c]
+treeToString (Branch c t1 t2) = [c] ++ "(" ++ (treeToString t1) ++ "," ++ (treeToString t2) ++ ")"
+
+stringToTreeRules :: Parser (Tree Char)
+stringToTreeRules = do
+    mx <- optionMaybe (oneOf ['a'..'z'])
+    case mx of
+        Nothing -> 
+                    return Empty
+        Just x -> do 
+                      m <- optionMaybe (char '(')
+                      (t1,t2) <- case m of
+                                    Just _ -> do 
+                                                t1 <- stringToTreeRules
+                                                char ','
+                                                t2 <- stringToTreeRules
+                                                char ')'
+                                                return (t1,t2)
+                                    Nothing -> return (Empty,Empty)
+
+                      return (Branch x t1 t2)
+
+stringToTree :: String -> Tree Char
+stringToTree s = case (parse stringToTreeRules "parse error" s) of
+                Left _ -> error "parse error"
+                Right t -> t
+
+
+treeToPreorder :: Tree Char -> String
+treeToPreorder Empty = ""
+treeToPreorder (Branch c t1 t2) = [c] ++ treeToPreorder t1 ++ treeToPreorder t2
+
+treeToInorder :: Tree Char -> String
+treeToInorder Empty = ""
+treeToInorder (Branch c t1 t2) = treeToInorder t1 ++ [c] ++ treeToInorder t2
+
+preInTree :: String -> String -> Tree Char
+preInTree "" "" = Empty
+preInTree po io = let (io1,io2') = break (==(head po)) io
+                      io2 = tail io2'
+                      l1 = length io1
+                      po' = tail po in 
+                      Branch (head po) (preInTree (take l1 po') io1) (preInTree (drop l1 po') io2)
+
+
+example = (Branch 'a' (Branch 'b' (Branch 'd' Empty Empty) (Branch 'e' Empty Empty)) (Branch 'c' Empty (Branch 'f' (Branch 'g' Empty Empty) Empty)))
+
+tree2ds :: Tree Char -> [Char]
+tree2ds Empty = "."
+tree2ds (Branch c t1 t2) = [c] ++ (tree2ds t1) ++ (tree2ds t2)
+
+
+ds2tree :: String -> Tree Char
+ds2tree s = fst $ iter s
+    where iter ('.':xs) = (Empty,xs)
+          iter (x:xs) = let (t1,r') = iter xs
+                            (t2,r'') = iter r' in
+                          (Branch x t1 t2,r'')
 
