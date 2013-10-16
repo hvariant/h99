@@ -29,17 +29,17 @@ flatten (List xs) = foldr step [] xs
     where step x r = (flatten x) ++ r
 
 compress :: (Eq a) => [a] -> [a]
-compress xs = reverse $ foldl step [] xs
-    where step [] x = [x]
-          step r@(y:ys) x = if y == x then r else (x:r)
+compress xs = foldr step [] xs
+    where step x [] = [x]
+          step x r@(y:ys) = if y == x then r else (x:r)
                         
 pack :: (Eq a) => [a] -> [[a]]
-pack xs = reverse $ foldl step [] xs
-    where step [] x = [[x]]
-          step (y:ys) x = if head y == x then ((x:y):ys) else ([x]:y:ys)
+pack xs = foldr step [] xs
+    where step x [] = [[x]]
+          step x (y:ys) = if head y == x then ((x:y):ys) else ([x]:y:ys)
 
 encode :: (Eq a) => [a] -> [(Int,a)]
-encode xs = reverse $ foldl step [] xs
-    where step [] x = [(1,x)]
-          step ((ny,y):ys) x = if y == x then ((ny+1,y):ys) else ((1,x):(ny,y):ys)
+encode xs = foldr step [] xs
+    where step x [] = [(1,x)]
+          step x ((ny,y):ys) = if y == x then ((ny+1,y):ys) else ((1,x):(ny,y):ys)
 
