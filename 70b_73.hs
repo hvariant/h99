@@ -50,3 +50,22 @@ stringToTree s = case parse stringToTreeRules "parse error" s of
                     Right t -> t
 
 
+ipl :: Tree a -> Int
+ipl (Node _ []) = 0
+ipl (Node _ sub) = let r = map ipl sub in
+                     sum $ map (\x -> (2*x+1)) r
+
+
+bottomUp :: Tree Char -> String
+bottomUp (Node c []) = [c]
+bottomUp (Node c sub) = (concat $ map bottomUp sub) ++ [c]
+
+
+lispDisp :: Tree Char -> String
+lispDisp (Node c []) = [c]
+lispDisp (Node c sub) = "(" ++ [c] ++ " " ++ (foldr step "" (map lispDisp sub)) ++ ")"
+    where step s1 "" = s1
+          step s1 s2 = s1 ++ " " ++ s2
+
+
+
