@@ -1,3 +1,6 @@
+import Data.List (sortBy,find)
+import qualified Data.Map as Map
+
 --conversion
 --omitted
 
@@ -22,4 +25,73 @@ myCycle s edges = search s [] [s]
                                  if s `elem` adjs' then
                                     ((reverse (s:path)) : ret)
                                     else ret
+
+expandEdges edges = concat $ map (\(u,v) -> if (v,u) `elem` edges then [(u,v)] else [(v,u),(u,v)]) edges
+
+--assumed undirected graph
+isConnected :: [Int] -> [(Int,Int)] -> Bool
+isConnected ns edges = let edges' = expandEdges edges in
+                         helper ns edges'
+    where helper [] [] = True
+          helper [] _ = True
+          helper _ [] = False
+          helper (n:ns) edges = and (map (\v -> (length (paths n v edges) > 0) ) ns) && isConnected ns edges
+
+isTree :: [Int] -> [(Int,Int)] -> Bool
+isTree ns edges = let n = length ns in
+                    isConnected ns edges && (length edges) == (n-1)
+
+spanTrees :: [Int] -> [(Int,Int)] -> [[(Int,Int)]]
+spanTrees nodes edges
+    | not (isConnected nodes edges) = []
+    | isTree nodes edges = [edges]
+    | otherwise = let le = length edges in 
+                    foldr (++) [] $ map (\i -> let edges' = (take (i-1) edges) ++ (drop i edges) in
+                                                 spanTrees nodes edges') [1..le]
+
+
+primSpanTree :: Int -> [(Int,Int,Int)] -> ([(Int,Int)],Int)
+primSpanTree n edges
+    | not (isConnected [1..n] $ map (\(x,y,_) -> (x,y)) edges) = error "not connected"
+    | otherwise = helper [1..n] edges ((1,0):[(i,-1) | i <- [2..n]]) 0 [] (constructMap [1..n] Map.empty)
+
+    where weight (_,_,w) = w
+          compareWeight e1 e2 = compare (weight e1) (weight e2)
+
+          compareDis (i1,d1) (i2,d2) = case (d1,d2) of
+                                        (-1,-1) -> EQ
+                                        (-1,_) -> GT
+                                        (_,-1) -> LT
+                                        (_,_) -> compare d1 d2
+
+          relax mi (i,d) pre = case find (\(u,v,w) -> w /= (-1) && ((u,v) == (mi,i) || (v,u) == (mi,i))) edges of
+                                 Nothing -> ((i,d),pre)
+                                 Just (_,_,w) -> if d == -1 || w < d then
+                                                    ((i,w),Map.insert i mi pre)
+                                                    else ((i,d),pre)
+
+          constructMap [] r = r
+          constructMap (n:ns) r = constructMap ns (Map.insert n (-1) r)
+
+          updatePreAndDis _ [] pre = (pre,[])
+          updatePreAndDis mi (p:ps) pre = let (p',pre') = relax mi p pre
+                                              (pre'',ps') = updatePreAndDis mi ps pre' in
+                                            (pre'',p':ps')
+
+          helper _ _ [] s r _ = (r,s)
+          helper ns edges mindis@(p:ps) s r pre = case p of 
+                                                   (_,-1) -> error "not connected" --cannot happen
+                                                   (mi,md) -> let (pre',ps') = updatePreAndDis mi ps pre
+                                                                  r' = case Map.lookup mi pre' of
+                                                                        Just (-1) -> r
+                                                                        Just mipre -> ((mipre,mi):r)
+                                                                        Nothing -> r
+                                                                in
+                                                                helper ns edges ps' (s+md) r' pre'
+          
+
+
+
+
+
 
