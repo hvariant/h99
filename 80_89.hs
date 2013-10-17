@@ -53,7 +53,7 @@ spanTrees nodes edges
 primSpanTree :: Int -> [(Int,Int,Int)] -> ([(Int,Int)],Int)
 primSpanTree n edges
     | not (isConnected [1..n] $ map (\(x,y,_) -> (x,y)) edges) = error "not connected"
-    | otherwise = helper [1..n] edges ((1,0):[(i,-1) | i <- [2..n]]) 0 [] (constructMap [1..n] Map.empty)
+    | otherwise = helper [1..n] ((1,0):[(i,-1) | i <- [2..n]]) 0 [] (constructMap [1..n] Map.empty)
 
     where weight (_,_,w) = w
           compareWeight e1 e2 = compare (weight e1) (weight e2)
@@ -63,10 +63,14 @@ primSpanTree n edges
                                         (-1,_) -> GT
                                         (_,-1) -> LT
                                         (_,_) -> compare d1 d2
+          
+          edge_map = em_helper Map.empty edges
+            where em_helper m [] = m
+                  em_helper m ((x,y,w):es) = em_helper (Map.insert (x,y) w (Map.insert (y,x) w m)) es
 
-          relax mi (i,d) pre = case find (\(u,v,w) -> w /= (-1) && ((u,v) == (mi,i) || (v,u) == (mi,i))) edges of
+          relax mi (i,d) pre = case Map.lookup (mi,i) edge_map of
                                  Nothing -> ((i,d),pre)
-                                 Just (_,_,w) -> if d == -1 || w < d then
+                                 Just w -> if d == -1 || w < d then
                                                     ((i,w),Map.insert i mi pre)
                                                     else ((i,d),pre)
 
@@ -78,8 +82,8 @@ primSpanTree n edges
                                               (pre'',ps') = updatePreAndDis mi ps pre' in
                                             (pre'',p':ps')
 
-          helper _ _ [] s r _ = (r,s)
-          helper ns edges mindis@(p:ps) s r pre = case p of 
+          helper _ [] s r _ = (r,s)
+          helper ns mindis@(p:ps) s r pre = case p of 
                                                    (_,-1) -> error "not connected" --cannot happen
                                                    (mi,md) -> let (pre',ps') = updatePreAndDis mi ps pre
                                                                   r' = case Map.lookup mi pre' of
@@ -87,8 +91,8 @@ primSpanTree n edges
                                                                         Just mipre -> ((mipre,mi):r)
                                                                         Nothing -> r
                                                                 in
-                                                                helper ns edges ps' (s+md) r' pre'
-          
+                                                                helper ns ps' (s+md) r' pre'
+
 
 
 
