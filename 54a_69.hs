@@ -304,3 +304,4 @@ ds2tree s = fst $ iter s
                             (t2,r'') = iter r' in
                           (Branch x t1 t2,r'')
 
+
