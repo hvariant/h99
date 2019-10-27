@@ -6,7 +6,9 @@ inherit (nixpkgs) pkgs;
 inherit (pkgs) haskellPackages;
 
 haskellDeps = ps: with ps; [
+  QuickCheck
   base
+  hspec
   random
 ];
 
