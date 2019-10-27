@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 
+module Q1_10 where
+
 import Data.Functor (($>))
 import Data.List (foldl', group)
 
