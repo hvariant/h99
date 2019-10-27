@@ -28,7 +28,7 @@ myReverse :: [a] -> [a]
 myReverse = foldl' (flip (:)) []
 
 isPalindrome :: (Eq a) => [a] -> Bool
-isPalindrome xs = xs == (myReverse xs)
+isPalindrome xs = xs == myReverse xs
 
 data NestedList a = Elem a | List [NestedList a]
 

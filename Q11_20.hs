@@ -22,7 +22,7 @@ decodeModified = concatMap unfold
 
 encodeDirect :: (Eq a) => [a] -> [Cell a]
 encodeDirect = map f . group
-  where f (a:[]) = Single a
+  where f [a] = Single a
         f as@(a:_) = Multiple (length as) a
         f [] = error "impossible"
 
@@ -30,7 +30,7 @@ dupli :: [a] -> [a]
 dupli = concatMap (\x -> [x,x])
 
 repli :: [a] -> Int -> [a]
-repli xs n = concatMap (\x -> replicate n x) xs
+repli xs n = concatMap (replicate n) xs
 
 dropEvery :: [a] -> Int -> [a]
 dropEvery [] _ = []
@@ -46,8 +46,8 @@ slice xs i j = take (j-i'+1) . drop (i-1) $ xs
   where i' = max i 1
 
 rotate :: [a] -> Int -> [a]
-rotate xs n = (drop n' xs) ++ (take n' xs)
-  where n' = n `mod` (length xs)
+rotate xs n = (drop n' xs) ++ take n' xs
+  where n' = n `mod` length xs
 
 removeAt :: Int -> [a] -> (Maybe a,[a])
 removeAt _ [] = (Nothing, [])
@@ -78,7 +78,7 @@ main = hspec $ do
     it "should work" $ property $
       \xs -> let ys = pack (xs :: [Int])
                  ys' = pack $ dupli (xs :: [Int])
-                 p y y' = 2 * (length y) == length y'
+                 p y y' = 2 * length y == length y'
               in and $ zipWith p ys ys'
 
   describe "repli" $ do
