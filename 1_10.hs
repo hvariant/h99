@@ -1,45 +1,46 @@
-myLast :: [a] -> a
-myLast (x:[]) = x
-myLast (x:xs) = myLast xs
+{-# OPTIONS_GHC -Wall #-}
 
-myButLast :: [a] -> a
-myButLast (x:_:[]) = x
-myButLast (x:xs) = myButLast xs
+import Data.Functor (($>))
+import Data.List (foldl', group)
 
-elementAt (x:_) 1 = x
-elementAt (x:xs) n = elementAt xs (n-1)
+myLast :: [a] -> Maybe a
+myLast = foldl' ($>) Nothing
 
-myLength [] = 0
-myLength xs = iter xs 0
-    where iter [] r = r
-          iter (x:xs) r = iter xs (r+1)
+myButLast :: [a] -> Maybe a
+myButLast = fst . foldl' f (Nothing, Nothing)
+  where f (_, b) x = (b, Just x)
 
-myReverse [] = []
-myReverse xs = iter xs []
-    where iter [] r = r
-          iter (x:xs) r = iter xs (x:r)
+elementAt :: [a] -> Int -> Maybe a
+elementAt xs n
+  | n <= 0 = Nothing
+  | otherwise = snd . foldl' f (1, Nothing) $ xs
+  where f (i, y) x
+          | n == i    = (i+1, Just x)
+          | otherwise = (i+1, y)
+
+myLength :: [a] -> Int
+myLength = foldr (const (+1)) 0
+
+myReverse :: [a] -> [a]
+myReverse = foldl' (flip (:)) []
 
 isPalindrome :: (Eq a) => [a] -> Bool
 isPalindrome xs = xs == (myReverse xs)
 
 data NestedList a = Elem a | List [NestedList a]
+
 flatten :: NestedList a -> [a]
 flatten (Elem a) = [a]
-flatten (List xs) = foldr step [] xs
-    where step x r = (flatten x) ++ r
+flatten (List xs) = concatMap flatten xs
 
 compress :: (Eq a) => [a] -> [a]
-compress xs = foldr step [] xs
-    where step x [] = [x]
-          step x r@(y:ys) = if y == x then r else (x:r)
-                        
+compress = map head . group
+
 pack :: (Eq a) => [a] -> [[a]]
-pack xs = foldr step [] xs
-    where step x [] = [[x]]
-          step x (y:ys) = if head y == x then ((x:y):ys) else ([x]:y:ys)
+pack [] = []
+pack (x:xs) = let (eq, neq) = span (== x) xs
+               in (x:eq) : pack neq
 
 encode :: (Eq a) => [a] -> [(Int,a)]
-encode xs = foldr step [] xs
-    where step x [] = [(1,x)]
-          step x ((ny,y):ys) = if y == x then ((ny+1,y):ys) else ((1,x):(ny,y):ys)
+encode = map (\xs ->  (myLength xs, head xs)) . pack
 
