@@ -1,4 +1,8 @@
+module Q54a_69 where
+
 import Text.ParserCombinators.Parsec
+
+import Test.Hspec
 
 data Tree a = Empty | Branch a (Tree a) (Tree a) deriving (Show, Eq)
 
@@ -304,4 +308,60 @@ ds2tree s = fst $ iter s
                             (t2,r'') = iter r' in
                           (Branch x t1 t2,r'')
 
+main :: IO ()
+main = hspec $ do
+  describe "cbalTree" $ do
+    it "works" $ do
+      cbalTree 4 `shouldBe` [
+        Branch 'x' (Branch 'x' Empty Empty) 
+                   (Branch 'x' Empty 
+                               (Branch 'x' Empty Empty)),
+        Branch 'x' (Branch 'x' Empty Empty) 
+                   (Branch 'x' (Branch 'x' Empty Empty) 
+                               Empty),
+        Branch 'x' (Branch 'x' Empty 
+                               (Branch 'x' Empty Empty)) 
+                   (Branch 'x' Empty Empty),
+        Branch 'x' (Branch 'x' (Branch 'x' Empty Empty) 
+                               Empty) 
+                   (Branch 'x' Empty Empty)
+          ]
 
+  describe "symmetric" $ do
+    it "works" $ do
+      symmetric (Branch 'x' (Branch 'x' Empty Empty) Empty)
+        `shouldBe` False
+      symmetric (Branch 'x' (Branch 'x' Empty Empty) (Branch 'x' Empty Empty))
+        `shouldBe` True
+
+  describe "construct" $ do
+    it "works" $ do
+      construct [3, 2, 5, 7, 1]
+        `shouldBe` Branch 3 (Branch 2 (Branch 1 Empty
+                                                Empty)
+                                      Empty)
+                            (Branch 5 Empty
+                                      (Branch 7 Empty
+                                                Empty))
+    it "should produce symmetric trees" $ do
+      (symmetric . construct $ [5, 3, 18, 1, 4, 12, 21]) `shouldBe` True
+      (symmetric . construct $ [3, 2, 5, 7, 1]) `shouldBe` True
+
+  describe "symCbalTrees" $ do
+    it "works" $ do
+      symCbalTrees 5 `shouldBe`
+        [Branch 'x' (Branch 'x' (Branch 'x' Empty Empty) Empty) (Branch 'x' Empty (Branch 'x' Empty Empty)),
+         Branch 'x' (Branch 'x' Empty (Branch 'x' Empty Empty)) (Branch 'x' (Branch 'x' Empty Empty) Empty)]
+
+  describe "hbalTree" $ do
+    it "works" $ do
+      (take 4 $ hbalTree 'x' 3) `shouldBe` [
+        Branch 'x' (Branch 'x' Empty Empty) (Branch 'x' Empty (Branch 'x' Empty Empty)),
+        Branch 'x' (Branch 'x' Empty Empty) (Branch 'x' (Branch 'x' Empty Empty) Empty),
+        Branch 'x' (Branch 'x' Empty Empty) (Branch 'x' (Branch 'x' Empty Empty) (Branch 'x' Empty Empty)),
+        Branch 'x' (Branch 'x' Empty (Branch 'x' Empty Empty)) (Branch 'x' Empty Empty)
+        ]
+
+  describe "hbalTreeNodes" $ do
+    it "works" $ do
+      length (hbalTreeNodes 'x' 15) `shouldBe` 1553
