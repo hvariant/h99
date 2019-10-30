@@ -294,9 +294,9 @@ preInTree po io = let (io1,io2') = break (==(head po)) io
                       Branch (head po) (preInTree (take l1 po') io1) (preInTree (drop l1 po') io2)
 
 
-example = (Branch 'a' (Branch 'b' (Branch 'd' Empty Empty) (Branch 'e' Empty Empty)) (Branch 'c' Empty (Branch 'f' (Branch 'g' Empty Empty) Empty)))
+exampleTree = (Branch 'a' (Branch 'b' (Branch 'd' Empty Empty) (Branch 'e' Empty Empty)) (Branch 'c' Empty (Branch 'f' (Branch 'g' Empty Empty) Empty)))
 
-tree2ds :: Tree Char -> [Char]
+tree2ds :: Tree Char -> String
 tree2ds Empty = "."
 tree2ds (Branch c t1 t2) = [c] ++ (tree2ds t1) ++ (tree2ds t2)
 
@@ -365,3 +365,45 @@ main = hspec $ do
   describe "hbalTreeNodes" $ do
     it "works" $ do
       length (hbalTreeNodes 'x' 15) `shouldBe` 1553
+
+  describe "countLeaves" $ do
+    it "works" $ do
+      countLeaves tree4 `shouldBe` 2
+
+  describe "leaves" $ do
+    it "works" $ do
+      leaves tree4 `shouldBe` [4, 2]
+
+  describe "internals" $ do
+    it "works" $ do
+      internals tree4 `shouldBe` [1, 2]
+
+  describe "atLevel" $ do
+    it "works" $ do
+      atLevel tree4 2 `shouldBe` [2, 2]
+
+  describe "completeBinaryTree" $ do
+    it "works" $ do
+      completeBinaryTree 4 `shouldBe`
+        Branch 'x' (Branch 'x' (Branch 'x' Empty Empty) Empty) (Branch 'x' Empty Empty)
+
+  describe "isCompleteBinaryTree" $ do
+    it "works" $ do
+      isCompleteBinaryTree (Branch 'x' (Branch 'x' Empty Empty) (Branch 'x' Empty Empty))
+        `shouldBe` True
+
+  describe "stringToTree" $ do
+    it "works" $ do
+      stringToTree "x(y,a(,b))" `shouldBe`
+        Branch 'x' (Branch 'y' Empty Empty) (Branch 'a' Empty (Branch 'b' Empty Empty))
+
+  describe "preorders|inorders" $ do
+    it "works" $ do
+      let t = stringToTree "a(b(d,e),c(,f(g,)))"
+          po = treeToPreorder t
+          io = treeToInorder t
+       in preInTree po io `shouldBe` t
+
+  describe "ds2tree|tree2ds" $ do
+    it "works" $ do
+      ds2tree (tree2ds exampleTree) `shouldBe` exampleTree
