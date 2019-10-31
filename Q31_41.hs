@@ -56,11 +56,12 @@ totient 1 = 1
 totient n = fromIntegral . length . filter (coprime n) $ [1..(n-1)]
 
 primeFactors :: Integer -> [Integer]
-primeFactors n = reverse $ iter n 2 []
-    where iter 1 _ r = r
-          iter n k r
-            | n `mod` k == 0 = iter (n `div` k) k (k:r)
-            | otherwise = iter n (k+1) r
+primeFactors n = reverse $ iter n primes []
+    where iter _ [] _ = []
+          iter 1 _ r = r
+          iter n (k:ks) r
+            | n `mod` k == 0 = iter (n `div` k) (k:ks) (k:r)
+            | otherwise = iter n ks r
 
 primeFactorMult :: Integer -> [(Integer, Int)]
 primeFactorMult = map (\x -> (head x, length x)) . group . primeFactors
@@ -69,7 +70,7 @@ phi :: Integer -> Integer
 phi n = product $ map (\(p,n) -> (p-1)*p^(n-1)) (primeFactorMult n)
 
 primesR :: Integer -> Integer -> [Integer]
-primesR a b = filter isPrime [a..b]
+primesR a b = takeWhile (<= b) . dropWhile (< a) $ primes
 
 goldbach :: Integer -> Maybe (Integer,Integer)
 goldbach n = iter 2 (n-2)
