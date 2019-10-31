@@ -8,6 +8,7 @@ inherit (pkgs) haskellPackages;
 haskellDeps = ps: with ps; [
   QuickCheck
   base
+  heap
   hspec
   random
 ];

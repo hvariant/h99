@@ -3,14 +3,45 @@
 
 import Data.List (group)
 import Data.Maybe (isJust, catMaybes)
+import qualified Data.Heap as PQ
 
 import Test.Hspec
 
+-- https://www.cs.hmc.edu/~oneill/papers/Sieve-JFP.pdf
+-- https://wiki.haskell.org/Prime_numbers
+sieve :: [Integer] -> [Integer]
+sieve [] = []
+sieve (x:xs) = x : sieve' xs (insertPrime x xs PQ.empty)
+  where sieve' [] _ = []
+        sieve' (x:xs) table
+          | h table <= x = sieve' xs (adjust table)
+          | otherwise = x : sieve' xs (insertPrime x xs table)
+        h = fst . head . PQ.take 1
+        insertPrime ::
+          Integer -> [Integer]
+          -> PQ.MinPrioHeap Integer [Integer]
+          -> PQ.MinPrioHeap Integer [Integer]
+        insertPrime p xs table = PQ.insert (p*p, map (* p) xs) table
+        adjust table
+          | n <= x = adjust $ deleteMinAndInsert n' ns table
+          | otherwise = table
+          where (n, n': ns) = head . PQ.take 1 $ table
+                deleteMinAndInsert ::
+                  Integer -> [Integer]
+                  -> PQ.MinPrioHeap Integer [Integer]
+                  -> PQ.MinPrioHeap Integer [Integer]
+                deleteMinAndInsert n' ns table = PQ.insert (n', ns) $ PQ.drop 1 table
+
+primes :: [Integer]
+primes = 2 : 3 : 5 : 7 : sieve (spin wheel2357 11)
+  where wheel2357 = 2:4:2:4:6:2:6:4:2:4:6:6:2:6:4:2:6:4:6:8:4:2:4:2:4:8
+            :6:4:6:2:4:6:2:6:6:4:2:4:6:2:6:4:2:4:2:10:2:10:wheel2357
+        spin [] _ = []
+        spin (x:xs) n = n : spin xs (n + x)
+
 isPrime :: Integer -> Bool
-isPrime n
-  | n <= 1 = False
-  | otherwise = let l = floor (sqrt (fromIntegral n)::Double)
-                 in all ((/=0) . rem n) [2..l]
+isPrime n = n > 1 &&
+  foldr (\p r -> p*p > n || n `rem` p /= 0 && r) True primes
 
 myGCD :: Integer -> Integer -> Integer
 myGCD x 0 = (abs x)
