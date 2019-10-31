@@ -12,28 +12,29 @@ import Test.Hspec
 sieve :: [Integer] -> [Integer]
 sieve [] = []
 sieve (x:xs) = x : sieve' xs (insertPrime x xs PQ.empty)
-  where h = fst . head . PQ.take 1
+  where
+    h = fst . head . PQ.take 1
 
-        sieve' [] _ = []
-        sieve' (x:xs) table
-          | h table <= x = sieve' xs (adjust table)
-          | otherwise = x : sieve' xs (insertPrime x xs table)
+    sieve' [] _ = []
+    sieve' (x:xs) table
+      | h table <= x = sieve' xs (adjust table)
+      | otherwise = x : sieve' xs (insertPrime x xs table)
 
-        insertPrime ::
-          Integer -> [Integer]
-          -> PQ.MinPrioHeap Integer [Integer]
-          -> PQ.MinPrioHeap Integer [Integer]
-        insertPrime p xs table = PQ.insert (p*p, map (* p) xs) table
+    insertPrime ::
+      Integer -> [Integer]
+      -> PQ.MinPrioHeap Integer [Integer]
+      -> PQ.MinPrioHeap Integer [Integer]
+    insertPrime p xs table = PQ.insert (p*p, map (* p) xs) table
 
-        adjust table
-          | n <= x = adjust $ deleteMinAndInsert n' ns table
-          | otherwise = table
-          where (n, n': ns) = head . PQ.take 1 $ table
-                deleteMinAndInsert ::
-                  Integer -> [Integer]
-                  -> PQ.MinPrioHeap Integer [Integer]
-                  -> PQ.MinPrioHeap Integer [Integer]
-                deleteMinAndInsert n' ns table = PQ.insert (n', ns) $ PQ.drop 1 table
+    adjust table
+      | n <= x = adjust $ deleteMinAndInsert n' ns table
+      | otherwise = table
+      where (n, n': ns) = head . PQ.take 1 $ table
+            deleteMinAndInsert ::
+              Integer -> [Integer]
+              -> PQ.MinPrioHeap Integer [Integer]
+              -> PQ.MinPrioHeap Integer [Integer]
+            deleteMinAndInsert n' ns table = PQ.insert (n', ns) $ PQ.drop 1 table
 
 primes :: [Integer]
 primes = 2 : 3 : 5 : 7 : sieve (spin wheel2357 11)
