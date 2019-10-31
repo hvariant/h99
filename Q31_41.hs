@@ -12,16 +12,19 @@ import Test.Hspec
 sieve :: [Integer] -> [Integer]
 sieve [] = []
 sieve (x:xs) = x : sieve' xs (insertPrime x xs PQ.empty)
-  where sieve' [] _ = []
+  where h = fst . head . PQ.take 1
+
+        sieve' [] _ = []
         sieve' (x:xs) table
           | h table <= x = sieve' xs (adjust table)
           | otherwise = x : sieve' xs (insertPrime x xs table)
-        h = fst . head . PQ.take 1
+
         insertPrime ::
           Integer -> [Integer]
           -> PQ.MinPrioHeap Integer [Integer]
           -> PQ.MinPrioHeap Integer [Integer]
         insertPrime p xs table = PQ.insert (p*p, map (* p) xs) table
+
         adjust table
           | n <= x = adjust $ deleteMinAndInsert n' ns table
           | otherwise = table
