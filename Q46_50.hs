@@ -41,7 +41,7 @@ table2 bf = unlines $ map f (gen_entry 2)
 
 tablen :: Int -> ([Bool] -> Bool) -> String
 tablen n nf = unlines $ map f (gen_entry n)
-    where f np = (foldr1 (\x -> (\r -> x ++ " " ++ r)) (map show np)) ++ " " ++  (show (nf np))
+    where f np = (foldr1 (\x r -> x ++ " " ++ r) (map show np)) ++ " " ++  (show (nf np))
 
 gray :: Int -> [String]
 gray 0 = []
@@ -67,10 +67,12 @@ insertSorted f x l@(y:ys) = case f x y of
                                 GT -> (y:(insertSorted f x ys))
 
 huffman :: [(a, Int)] -> [(a, String)]
-huffman xs = let xs' = sortBy (\(_,f1) -> (\(_,f2) -> compare f1 f2)) xs
+huffman xs = let xs' = sortBy key xs
                  tree = buildtree (map (\(x,n) -> Leaf n x) xs') in
                  reverse $ traverse tree [] ""
-    where buildtree (x:[]) = x
+    where key (_, f1) (_, f2) = compare f1 f2
+
+          buildtree (x:[]) = x
           buildtree (x1:x2:xs) = let f1 = treeFreq x1
                                      f2 = treeFreq x2 in
                                      buildtree $ insertSorted treeComp (Node (f1+f2) x1 x2) xs

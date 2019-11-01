@@ -32,7 +32,7 @@ rndSelect xs n = map (xs !!) <$> replicateM n mr
 diffSelect :: Int -> Int -> IO [Int]
 diffSelect 0 _ = return []
 diffSelect n m
-  | n == m = pure [1..m]
+  | n == m = rndPermu [1..m]
   | otherwise = diffSelect' [1..m] m n
   -- lifted from https://wiki.haskell.org/99_questions/Solutions/23
   -- a really clever way to do deduplication in O(N)
