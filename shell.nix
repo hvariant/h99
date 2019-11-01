@@ -9,6 +9,7 @@ haskellDeps = ps: with ps; [
   QuickCheck
   base
   hspec
+  megaparsec
   random
   split
 ];
