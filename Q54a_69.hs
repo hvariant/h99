@@ -154,17 +154,14 @@ treeToString (Branch c t1 t2) = [c] ++ "(" ++ (treeToString t1) ++ "," ++ (treeT
 
 type Parser = Parsec Void String
 
-stringToTreeRules :: Parser (Tree Char)
-stringToTreeRules = pTree
-  where pBranch = letterChar >>= \c
+stringToTree :: String -> Either (ParseErrorBundle String Void) (Tree Char)
+stringToTree s = parse pTree "stringToTree" s
+  where pTree = pBranch <|> pure Empty
+        pBranch = letterChar >>= \c
                -> pSubTree c <|> pure (Branch c Empty Empty)
         pSubTree c = Branch c <$> pLeftTree <*> pRightTree
         pLeftTree = char '(' *> pTree <* char ','
         pRightTree = pTree <* char ')'
-        pTree = pBranch <|> pure Empty
-
-stringToTree :: String -> Either (ParseErrorBundle String Void) (Tree Char)
-stringToTree s = parse stringToTreeRules "stringToTree" s
 
 treeToPreorder :: Tree Char -> String
 treeToPreorder Empty = ""
