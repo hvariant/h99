@@ -1,5 +1,5 @@
-module Q54a_69 where
 
+import Data.Bool (bool)
 import Text.ParserCombinators.Parsec
 
 import Test.Hspec
@@ -24,18 +24,16 @@ tree3 = Empty
 tree4 = Branch 1 (Branch 2 Empty (Branch 4 Empty Empty))
                  (Branch 2 Empty Empty)
 
-
-reduce c ts1 ts2 = map f [(t1,t2) | t1 <- ts1, t2 <- ts2]
-    where f (t1,t2) = Branch c t1 t2
-
 cbalTree :: Int -> [Tree Char]
 cbalTree 0 = [Empty]
-cbalTree n 
-    | (n-1) `mod` 2 == 0 = let sub = (cbalTree ((n-1) `div` 2)) in
-                            reduce 'x' sub sub
-    | otherwise = let x = (n-1) `div` 2 in
-                    (reduce 'x' (cbalTree x) (cbalTree (n-1-x))) ++ (reduce 'x' (cbalTree (n-1-x)) (cbalTree x))
-
+cbalTree n
+  | (n-1) `mod` 2 == 0 = let sub = (cbalTree ((n-1) `div` 2))
+                          in (Branch 'x' <$> sub <*> sub)
+  | otherwise = let x = (n-1) `div` 2
+                    t1 = cbalTree x
+                    t2 = cbalTree (n-1-x)
+                 in (Branch 'x' <$> t1 <*> t2)
+                 ++ (Branch 'x' <$> t2 <*> t1)
 
 mirror :: Tree a -> Tree a
 mirror Empty = Empty
@@ -51,64 +49,65 @@ symmetric Empty = True
 symmetric (Branch _ t1 t2) = t1 `treeStructEq` mirror t2
 
 construct :: (Ord a) => [a] -> Tree a
-construct xs = foldl insertTree Empty xs
-    where insertTree Empty x = Branch x Empty Empty
-          insertTree (Branch c t1 t2) x = case compare x c of
-                                                LT -> (Branch c (insertTree t1 x) t2)
-                                                EQ -> (Branch c (insertTree t1 x) t2)
-                                                GT -> (Branch c t1 (insertTree t2 x))
-
+construct = foldl insertTree Empty
+  where insertTree Empty x = Branch x Empty Empty
+        insertTree (Branch c t1 t2) x = case compare x c of
+                                          LT -> (Branch c (insertTree t1 x) t2)
+                                          EQ -> (Branch c (insertTree t1 x) t2)
+                                          GT -> (Branch c t1 (insertTree t2 x))
 
 symCbalTrees :: Int -> [Tree Char]
 symCbalTrees 0 = []
 symCbalTrees n
-    | (n-1) `mod` 2 == 0 = let sub = (cbalTree ((n-1) `div` 2)) in
-                            [(Branch 'x' (mirror t) t) | t <- sub]
+    | (n-1) `mod` 2 == 0 = let sub = cbalTree $ (n-1) `div` 2
+                            in zipWith (Branch 'x') (mirror <$> sub) sub
     | otherwise = []
 
 hbalTree :: a -> Int -> [Tree a]
-hbalTree _ 0 = [Empty]
-hbalTree c h
-    | h == 1 = [Branch c Empty Empty]
-    | h >= 2 = let ts1 = hbalTree c (h-1)
-                   ts2 = hbalTree c (h-2) in
-                 [Branch c t1 t2 | t1 <- ts1, t2 <- ts1] ++ 
-                 [Branch c t1 t2 | t1 <- ts1, t2 <- ts2] ++ 
-                 [Branch c t1 t2 | t1 <- ts2, t2 <- ts1]
-
-minNodes :: Int -> Int
-minNodes 0 = 0
-minNodes 1 = 1
-minNodes 2 = 2
-minNodes h = minNodes (h-1) + minNodes (h-2)
-
-maxNodes :: Int -> Int
-maxNodes h = 2^h - 1
-
-maxHeight :: Int -> Int
-maxHeight n = last $ takeWhile (\h -> (minNodes h) <= n) [1..]
-
-minHeight :: Int -> Int
-minHeight n = ceiling $ logBase 2 (fromIntegral (n+1))
+hbalTree c = map fst . hbalTree'
+  where hbalTree' 0 = [(Empty, 0)]
+        hbalTree' 1 = [(Branch c Empty Empty, 1)]
+        hbalTree' n
+          | n < 0 = []
+          | otherwise = let t = hbalTree' (n-1) ++ hbalTree' (n-2)
+                            f (t1, h1) (t2, h2) = (,) (Branch c t1 t2) (1 + max h1 h2)
+                         in filter (\(_, h) -> h == n) (f <$> t <*> t)
 
 hbalTreeNodes :: a -> Int -> [Tree a]
 hbalTreeNodes _ 0 = [Empty]
 hbalTreeNodes c 1 = [Branch c Empty Empty]
-hbalTreeNodes c n = let minH = minHeight n
-                        maxH = maxHeight n in
-                      foldr (++) [] $ map (hbal_nh n) [minH..maxH]
-    where gen_tree h1 h2 n ns1 ns2 = foldr (++) [] [[Branch c t1 t2 | t1 <- hbal_nh n1 h1 , t2 <- hbal_nh (n-n1-1) h2] | n1 <- ns1 , (n-n1-1) `elem` ns2]
+hbalTreeNodes c n
+  | n < 0 = []
+  | otherwise =
+    let minH = minHeight n
+        maxH = maxHeight n
+     in concatMap (\h -> hbalGen c h n) [minH..maxH]
+  where
+    minNodes :: Int -> Int
+    minNodes 0 = 0
+    minNodes 1 = 1
+    minNodes 2 = 2
+    minNodes h = 1 + (minNodes (h-1)) + (minNodes (h-2))
 
-          hbal_nh _ 0 = [Empty]
-          hbal_nh _ 1 = [Branch c Empty Empty]
-          hbal_nh n h = let minN1 = minNodes (h-1)
-                            maxN1 = maxNodes (h-1)
-                            minN2 = minNodes (h-2)
-                            maxN2 = maxNodes (h-2) in
-                          (gen_tree (h-1) (h-1) n [minN1..maxN1] [minN1..maxN1]) ++ 
-                          (gen_tree (h-1) (h-2) n [minN1..maxN1] [minN2..maxN2]) ++ 
-                          (gen_tree (h-2) (h-1) n [minN2..maxN2] [minN1..maxN1])
+    maxNodes :: Int -> Int
+    maxNodes h = 2^h - 1
 
+    maxHeight :: Int -> Int
+    maxHeight n = last $ takeWhile (\h -> minNodes h <= n) [0..]
+
+    minHeight :: Int -> Int
+    minHeight n = ceiling . logBase 2 $ fromIntegral (n+1)
+
+    hbalGen :: a -> Int -> Int -> [Tree a]
+    hbalGen _ 0 _ = [Empty]
+    hbalGen c 1 _ = [Branch c Empty Empty]
+    hbalGen c h n = do
+      (h1, h2) <- [(h-2, h-1), (h-1, h-1), (h-1, h-2)]
+      let minN1 = max (minNodes h1) (n - 1 - maxNodes h2)
+      let maxN1 = min (maxNodes h1) (n - 1 - minNodes h2)
+      n1 <- [minN1..maxN1]
+      let n2 = n - 1 - n1
+      Branch c <$> (hbalGen c h1 n1) <*> (hbalGen c h2 n2)
 
 countLeaves :: Tree a -> Int
 countLeaves Empty = 0
@@ -138,7 +137,7 @@ completeBinaryTree n = let h = (floor $ logBase 2 (fromIntegral (n+1))) - 1
                          if res <= 2^h then
                             Branch 'x' (completeBinaryTree ((n-1-res) `div` 2 + res)) (completeBinaryTree ((n-1-res) `div` 2))
                             else Branch 'x' (completeBinaryTree (2^(h+1)-1)) (completeBinaryTree (((n-1-res) `div` 2) + (res - 2^h)))
-                         
+
 
 countNodes :: Tree a -> Int
 countNodes Empty = 0
@@ -290,8 +289,8 @@ preInTree "" "" = Empty
 preInTree po io = let (io1,io2') = break (==(head po)) io
                       io2 = tail io2'
                       l1 = length io1
-                      po' = tail po in 
-                      Branch (head po) (preInTree (take l1 po') io1) (preInTree (drop l1 po') io2)
+                      po' = tail po
+                   in Branch (head po) (preInTree (take l1 po') io1) (preInTree (drop l1 po') io2)
 
 
 exampleTree = (Branch 'a' (Branch 'b' (Branch 'd' Empty Empty) (Branch 'e' Empty Empty)) (Branch 'c' Empty (Branch 'f' (Branch 'g' Empty Empty) Empty)))
@@ -300,32 +299,18 @@ tree2ds :: Tree Char -> String
 tree2ds Empty = "."
 tree2ds (Branch c t1 t2) = [c] ++ (tree2ds t1) ++ (tree2ds t2)
 
-
 ds2tree :: String -> Tree Char
 ds2tree s = fst $ iter s
     where iter ('.':xs) = (Empty,xs)
           iter (x:xs) = let (t1,r') = iter xs
-                            (t2,r'') = iter r' in
-                          (Branch x t1 t2,r'')
+                            (t2,r'') = iter r'
+                         in (Branch x t1 t2,r'')
 
 main :: IO ()
 main = hspec $ do
   describe "cbalTree" $ do
     it "works" $ do
-      cbalTree 4 `shouldBe` [
-        Branch 'x' (Branch 'x' Empty Empty) 
-                   (Branch 'x' Empty 
-                               (Branch 'x' Empty Empty)),
-        Branch 'x' (Branch 'x' Empty Empty) 
-                   (Branch 'x' (Branch 'x' Empty Empty) 
-                               Empty),
-        Branch 'x' (Branch 'x' Empty 
-                               (Branch 'x' Empty Empty)) 
-                   (Branch 'x' Empty Empty),
-        Branch 'x' (Branch 'x' (Branch 'x' Empty Empty) 
-                               Empty) 
-                   (Branch 'x' Empty Empty)
-          ]
+      length (cbalTree 4) `shouldBe` 4
 
   describe "symmetric" $ do
     it "works" $ do
@@ -349,18 +334,14 @@ main = hspec $ do
 
   describe "symCbalTrees" $ do
     it "works" $ do
-      symCbalTrees 5 `shouldBe`
-        [Branch 'x' (Branch 'x' (Branch 'x' Empty Empty) Empty) (Branch 'x' Empty (Branch 'x' Empty Empty)),
-         Branch 'x' (Branch 'x' Empty (Branch 'x' Empty Empty)) (Branch 'x' (Branch 'x' Empty Empty) Empty)]
+      length (symCbalTrees 5) `shouldBe` 2
 
   describe "hbalTree" $ do
     it "works" $ do
-      (take 4 $ hbalTree 'x' 3) `shouldBe` [
-        Branch 'x' (Branch 'x' Empty Empty) (Branch 'x' Empty (Branch 'x' Empty Empty)),
-        Branch 'x' (Branch 'x' Empty Empty) (Branch 'x' (Branch 'x' Empty Empty) Empty),
-        Branch 'x' (Branch 'x' Empty Empty) (Branch 'x' (Branch 'x' Empty Empty) (Branch 'x' Empty Empty)),
-        Branch 'x' (Branch 'x' Empty (Branch 'x' Empty Empty)) (Branch 'x' Empty Empty)
-        ]
+      (length $ hbalTree 'x' 0) `shouldBe` 1
+      (length $ hbalTree 'x' 1) `shouldBe` 1
+      (length $ hbalTree 'x' 2) `shouldBe` 3
+      (length $ hbalTree 'x' 3) `shouldBe` 15
 
   describe "hbalTreeNodes" $ do
     it "works" $ do
