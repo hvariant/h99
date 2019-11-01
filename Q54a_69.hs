@@ -11,24 +11,6 @@ import Test.Hspec
 
 data Tree a = Empty | Branch a (Tree a) (Tree a) deriving (Show, Eq)
 
-leaf :: a -> Tree a
-leaf x = Branch x Empty Empty
-
-tree1' :: Tree Char
-tree1' = Branch 'a' (Branch 'b' (leaf 'd')
-                                (leaf 'e'))
-                    (Branch 'c' Empty
-                                (Branch 'f' (leaf 'g')
-                                            Empty))
-
--- A binary tree consisting of a root node only
-tree2 :: Tree Char
-tree2 = Branch 'a' Empty Empty
- 
--- An empty binary tree
-tree3 :: Tree Char
-tree3 = Empty
- 
 -- A tree of integers
 tree4 :: Tree Int
 tree4 = Branch 1 (Branch 2 Empty (Branch 4 Empty Empty))
@@ -164,32 +146,6 @@ countNodes (Branch _ t1 t2) = 1 + countNodes t1 + countNodes t2
 
 isCompleteBinaryTree :: Tree a -> Bool
 isCompleteBinaryTree t = t `treeStructEq` completeBinaryTree (countNodes t)
-
-tree64 :: Tree Char
-tree64 = Branch 'n'
-                (Branch 'k'
-                        (Branch 'c'
-                                (Branch 'a' Empty Empty)
-                                (Branch 'h'
-                                        (Branch 'g'
-                                                (Branch 'e' Empty Empty)
-                                                Empty
-                                        )
-                                        Empty
-                                )
-                        )
-                        (Branch 'm' Empty Empty)
-                )
-                (Branch 'u'
-                        (Branch 'p'
-                                Empty
-                                (Branch 's'
-                                        (Branch 'q' Empty Empty)
-                                        Empty
-                                )
-                        )
-                        Empty
-                )
 
 treeToString :: Tree Char -> String
 treeToString Empty = ""
