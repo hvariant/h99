@@ -2,9 +2,12 @@
 
 module Q80_89 where
 
+import Data.Bool (bool)
+import Data.Tuple (swap)
 import Data.List (nubBy, sort)
 import qualified Data.Set as S
 import qualified Data.MultiMap as MM
+import Q21_28 (combinations)
 
 import Prelude hiding (cycle)
 
@@ -33,18 +36,18 @@ adjToGraph (Adj adj) = Graph nodes edges
                            || (a == d && b == c)
         unwind (n, ns') = zip (repeat n) ns'
 
-paths :: Int -> Int -> [(Int,Int)] -> [[Int]]
-paths s t edges = search s t (S.singleton s) [s]
+paths :: Ord a => a -> a -> [(a , a)] -> [[a]]
+paths s t edges = (s:) <$> search s t (S.empty) []
   where edgesMap = MM.fromList edges
         search x y vs path =
           let adjs' = MM.lookup x edgesMap
               adjs = filter (\u -> not $ u `S.member` vs) adjs'
               r = concatMap (\u -> search u y (u `S.insert` vs) (u:path)) adjs
            in if x == y
-              then (reverse path: r)
+              then (reverse path : r)
               else r
 
-cycle :: Int -> [(Int,Int)] -> [[Int]]
+cycle :: Ord a => a -> [(a, a)] -> [[a]]
 cycle s edges = search s S.empty [s]
   where edgesMap = MM.fromList edges
         search cur vs path =
@@ -55,31 +58,25 @@ cycle s edges = search s S.empty [s]
               then (reverse (s:path) : ret)
               else ret
 
+k4 :: Graph Char
+k4 = Graph "abcd"
+       [('a', 'b'), ('b', 'c'), ('c', 'd'), ('d', 'a'), ('a', 'c'), ('b', 'd')]
+
+spanTrees :: Ord a => Graph a -> [Graph a]
+spanTrees g@(Graph nodes edges)
+    | length edges < length nodes - 1 = []
+    | length edges == length nodes - 1 = bool [] [g] isConnected
+    | otherwise = concatMap spanTrees (Graph nodes <$> combinations (length nodes - 1) edges)
+  where
+    doubleArcs = edges ++ fmap swap edges
+    paths' n v = paths n v doubleArcs
+
+    isConnected = search nodes
+      where search [] = True
+            search (n:ns') =
+              all (\v -> not $ null (paths' n v)) ns' && search ns'
+
 {-
-
-expandEdges edges = concat $ map (\(u,v) -> if (v,u) `elem` edges then [(u,v)] else [(v,u),(u,v)]) edges
-
---assumed undirected graph
-isConnected :: [Int] -> [(Int,Int)] -> Bool
-isConnected ns edges = let edges' = expandEdges edges in
-                         helper ns edges'
-    where helper [] [] = True
-          helper [] _ = True
-          helper _ [] = False
-          helper (n:ns) edges = and (map (\v -> (length (paths n v edges) > 0) ) ns) && isConnected ns edges
-
-isTree :: [Int] -> [(Int,Int)] -> Bool
-isTree ns edges = let n = length ns in
-                    isConnected ns edges && (length edges) == (n-1)
-
-spanTrees :: [Int] -> [(Int,Int)] -> [[(Int,Int)]]
-spanTrees nodes edges
-    | not (isConnected nodes edges) = []
-    | isTree nodes edges = [edges]
-    | otherwise = let le = length edges in 
-                    foldr (++) [] $ map (\i -> let edges' = (take (i-1) edges) ++ (drop i edges) in
-                                                 spanTrees nodes edges') [1..le]
-
 
 primSpanTree :: Int -> [(Int,Int,Int)] -> ([(Int,Int)],Int)
 primSpanTree n edges
@@ -139,13 +136,20 @@ main = hspec $ do
 
   describe "paths" $ do
     it "works" $ do
-      paths 1 4 [(1,2),(2,3),(1,3),(3,4),(4,2),(5,6)] `shouldBe`
-        [[1,2,3,4],[1,3,4]]
-      paths 2 6 [(1,2),(2,3),(1,3),(3,4),(4,2),(5,6)] `shouldBe`
-        []
+      let setEq xs ys = (sort xs) == (sort ys)
+       in paths (1::Int) 4 [(1,2),(2,3),(1,3),(3,4),(4,2),(5,6)] `shouldSatisfy`
+            (\ps -> setEq ps [[1,2,3,4],[1,3,4]])
+      let setEq xs ys = (sort xs) == (sort ys)
+       in paths (1::Int) 1 [(1,2),(2,3),(3,1),(3,4),(4,2),(5,6)] `shouldSatisfy`
+            (\ps -> setEq ps [[1], [1,2,3,1]])
+      paths (2::Int) 6 [(1,2),(2,3),(1,3),(3,4),(4,2),(5,6)] `shouldBe` []
 
   describe "cycle" $ do
     it "works" $ do
-      cycle 2 [(1,2),(2,3),(1,3),(3,4),(4,2),(5,6)] `shouldBe`
+      cycle (2::Int) [(1,2),(2,3),(1,3),(3,4),(4,2),(5,6)] `shouldBe`
         [[2,3,4,2]]
-      cycle 1 [(1,2),(2,3),(1,3),(3,4),(4,2),(5,6)] `shouldBe` []
+      cycle (1::Int) [(1,2),(2,3),(1,3),(3,4),(4,2),(5,6)] `shouldBe` []
+
+  describe "spanTrees" $ do
+    it "works" $ do
+      length (spanTrees k4) `shouldBe` 16
