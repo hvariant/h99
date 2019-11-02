@@ -38,14 +38,14 @@ adjToGraph (Adj adj) = Graph nodes edges
         unwind (n, ns') = zip (repeat n) ns'
 
 paths :: Ord a => a -> a -> [(a , a)] -> [[a]]
-paths s t edges = (s:) <$> search s t (S.empty) []
+paths s t edges = (s:) <$> search s t S.empty []
   where edgesMap = MM.fromList edges
         search x y vs path =
           let adjs' = MM.lookup x edgesMap
               adjs = filter (\u -> not $ u `S.member` vs) adjs'
               r = concatMap (\u -> search u y (u `S.insert` vs) (u:path)) adjs
            in if x == y
-              then (reverse path : r)
+              then reverse path : r
               else r
 
 cycle :: Ord a => a -> [(a, a)] -> [[a]]
@@ -56,7 +56,7 @@ cycle s edges = search s S.empty [s]
               adjs = S.fromList $ filter (\u -> not (u `S.member` vs) || u == s) adjs'
               ret = concatMap (\u -> search u (u `S.insert` vs) (u:path)) adjs
            in if s `S.member` adjs
-              then (reverse (s:path) : ret)
+              then reverse (s:path) : ret
               else ret
 
 k4 :: Graph Char
@@ -75,7 +75,7 @@ spanTrees g@(Graph nodes edges)
     isConnected = search nodes
       where search [] = True
             search (n:ns') =
-              all (\v -> not $ null (paths' n v)) ns' && search ns'
+              all (not . null . paths' n) ns' && search ns'
 
 prim :: Ord a => [a] -> [(a, a, Int)] -> Maybe [(a, a, Int)]
 prim [] _ = Just []
@@ -89,11 +89,11 @@ prim (n:ns) es = search (S.singleton n) (S.fromList ns) es
                    (x `S.member` seen) && (y `S.member` unseen) || (y `S.member` seen) && (x `S.member` unseen)
                  byWeight (_, _, w1) (_, _, w2) = compare w1 w2
                  minEdgeMay = minimumByMay byWeight . filter isBridgeEdge $ edges
-             in case minEdgeMay of
-                  Nothing -> Nothing
-                  Just (x, y, w) -> ((x, y, w):)
-                                <$> search (x `S.insert` (y `S.insert` seen))
-                                           (x `S.delete` (y `S.delete` unseen)) edges
+              in case minEdgeMay of
+                   Nothing -> Nothing
+                   Just (x, y, w) -> ((x, y, w):)
+                                 <$> search (x `S.insert` (y `S.insert` seen))
+                                            (x `S.delete` (y `S.delete` unseen)) edges
 
 main :: IO ()
 main = hspec $ do
