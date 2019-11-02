@@ -10,6 +10,7 @@ haskellDeps = ps: with ps; [
   base
   hspec
   megaparsec
+  multimap
   random
   split
 ];
