@@ -5,6 +5,7 @@ module Q80_89 where
 import Data.Bool (bool)
 import Data.Tuple (swap)
 import Data.List (nubBy, sort)
+import Safe.Foldable (minimumByMay)
 import qualified Data.Set as S
 import qualified Data.MultiMap as MM
 import Q21_28 (combinations)
@@ -76,52 +77,23 @@ spanTrees g@(Graph nodes edges)
             search (n:ns') =
               all (\v -> not $ null (paths' n v)) ns' && search ns'
 
-{-
-
-primSpanTree :: Int -> [(Int,Int,Int)] -> ([(Int,Int)],Int)
-primSpanTree n edges
-    | not (isConnected [1..n] $ map (\(x,y,_) -> (x,y)) edges) = error "not connected"
-    | otherwise = helper [1..n] ((1,0):[(i,-1) | i <- [2..n]]) 0 [] (constructMap [1..n] Map.empty)
-
-    where weight (_,_,w) = w
-          compareWeight e1 e2 = compare (weight e1) (weight e2)
-
-          compareDis (i1,d1) (i2,d2) = case (d1,d2) of
-                                        (-1,-1) -> EQ
-                                        (-1,_) -> GT
-                                        (_,-1) -> LT
-                                        (_,_) -> compare d1 d2
-
-          edge_map = em_helper Map.empty edges
-            where em_helper m [] = m
-                  em_helper m ((x,y,w):es) = em_helper (Map.insert (x,y) w (Map.insert (y,x) w m)) es
-
-          relax mi (i,d) pre = case Map.lookup (mi,i) edge_map of
-                                 Nothing -> ((i,d),pre)
-                                 Just w -> if d == -1 || w < d then
-                                                    ((i,w),Map.insert i mi pre)
-                                                    else ((i,d),pre)
-
-          constructMap [] r = r
-          constructMap (n:ns) r = constructMap ns (Map.insert n (-1) r)
-
-          updatePreAndDis _ [] pre = (pre,[])
-          updatePreAndDis mi (p:ps) pre = let (p',pre') = relax mi p pre
-                                              (pre'',ps') = updatePreAndDis mi ps pre' in
-                                            (pre'',p':ps')
-
-          helper _ [] s r _ = (r,s)
-          helper ns mindis@(p:ps) s r pre = case p of 
-                                                   (_,-1) -> error "not connected" --cannot happen
-                                                   (mi,md) -> let (pre',ps') = updatePreAndDis mi ps pre
-                                                                  r' = case Map.lookup mi pre' of
-                                                                        Just (-1) -> r
-                                                                        Just mipre -> ((mipre,mi):r)
-                                                                        Nothing -> r
-                                                                in
-                                                                helper ns ps' (s+md) r' pre'
-
--}
+prim :: Ord a => [a] -> [(a, a, Int)] -> Maybe [(a, a, Int)]
+prim [] _ = Just []
+prim _ [] = Nothing
+prim (n:ns) es = search (S.singleton n) (S.fromList ns) es
+  where search :: Ord a => S.Set a -> S.Set a -> [(a, a, Int)] -> Maybe [(a, a, Int)]
+        search seen unseen edges
+           | S.size unseen == 0 = Just []
+           | otherwise =
+             let isBridgeEdge (x, y, _) =
+                   (x `S.member` seen) && (y `S.member` unseen) || (y `S.member` seen) && (x `S.member` unseen)
+                 byWeight (_, _, w1) (_, _, w2) = compare w1 w2
+                 minEdgeMay = minimumByMay byWeight . filter isBridgeEdge $ edges
+             in case minEdgeMay of
+                  Nothing -> Nothing
+                  Just (x, y, w) -> ((x, y, w):)
+                                <$> search (x `S.insert` (y `S.insert` seen))
+                                           (x `S.delete` (y `S.delete` unseen)) edges
 
 main :: IO ()
 main = hspec $ do
@@ -153,3 +125,14 @@ main = hspec $ do
   describe "spanTrees" $ do
     it "works" $ do
       length (spanTrees k4) `shouldBe` 16
+      spanTrees (Graph "ab" []) `shouldBe` []
+
+  describe "prim" $ do
+    it "works" $ do
+      prim ([]::String) [] `shouldBe` Just []
+      let setEq xs ys = (sort xs) == (sort ys)
+          nodes = [1,2,3,4,5] :: [Int]
+          edges :: [(Int, Int, Int)]
+          edges = [(1,2,12),(1,3,34),(1,5,78),(2,4,55),(2,5,32),(3,4,61),(3,5,44),(4,5,93)]
+       in prim nodes edges `shouldSatisfy`
+            \(Just p) -> p `setEq` [(1,2,12),(1,3,34),(2,4,55),(2,5,32)]

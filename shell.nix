@@ -12,6 +12,7 @@ haskellDeps = ps: with ps; [
   megaparsec
   multimap
   random
+  safe
   split
 ];
 
