@@ -171,6 +171,30 @@ connectedComponents g@(Graph ns _) = snd . foldr step (S.empty, []) $ ns
           | n `S.member` vs = (vs, comps)
           | otherwise = second (:comps) $ depthFirst' vs n [] adjNodes
 
+bipartite :: Ord a => Graph a -> Maybe [(a, Bool)]
+bipartite g@(Graph _ edges)
+  | checkBi = Just colours
+  | otherwise = Nothing
+  where
+    checkBi = all (\(a, b)
+                   -> fromMaybe True
+                    $ (/=) <$> a `M.lookup` colourMap <*> b `M.lookup` colourMap)
+                  edges
+
+    colourMap = M.fromList colours
+    colours = concatMap tryColour . fmap head . connectedComponents $ g
+
+    adjNodes = adjacentNodes g
+
+    tryColour = snd . search S.empty [] True
+      where
+        search vs acc color cur =
+          foldl' step (cur `S.insert` vs, (cur, color) : acc) nexts
+          where nexts = filter (not . (`S.member` vs)) (cur `MM.lookup` adjNodes)
+                step (vs', acc') n
+                  | n `S.member` vs' = (vs', acc')
+                  | otherwise = search vs' acc' (not color) n
+
 
 main :: IO ()
 main = hspec $ do
@@ -251,3 +275,12 @@ main = hspec $ do
       let setSetEq xs ys = (sort . fmap sort $ xs) == (sort . fmap sort $ ys)
       let g = Graph ([1,2,3,4,5,6,7]::[Int]) [(1,2),(2,3),(1,4),(3,4),(5,2),(5,4),(6,7)]
       connectedComponents g `shouldSatisfy` \ss -> setSetEq ss [[1,2,3,4,5],[6,7]]
+
+  describe "bipartite" $ do
+    it "works" $ do
+      let g1 = Graph [1,2,3,4,5] [(1,2),(2,3),(1,4),(3,4),(5,2),(5,4),(1,3)]
+      let g2 = Graph [1,2,3,4,5] [(1,2),(2,3),(1,4),(3,4),(5,2),(5,4)]
+      let g3 = Graph [1,2,3,4,5,6,7] [(1,2),(2,3),(1,4),(3,4),(5,2),(5,4),(6,7)]
+      bipartite (g1 :: Graph Int) `shouldBe` Nothing
+      bipartite (g2 :: Graph Int) `shouldSatisfy` isJust
+      bipartite (g3 :: Graph Int) `shouldSatisfy` isJust
