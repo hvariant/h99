@@ -2,12 +2,16 @@
 
 module Q80_89 where
 
+import Data.Maybe (isJust, fromMaybe)
 import Data.Bool (bool)
 import Data.Tuple (swap)
-import Data.List (nubBy, sort)
-import Safe.Foldable (minimumByMay)
+import Data.List (nubBy, sort, sortBy, find, foldl')
 import qualified Data.Set as S
+import qualified Data.Map as M
+
+import Safe.Foldable (minimumByMay)
 import qualified Data.MultiMap as MM
+
 import Q21_28 (combinations)
 
 import Prelude hiding (cycle)
@@ -95,6 +99,55 @@ prim (n:ns) es = search (S.singleton n) (S.fromList ns) es
                                  <$> search (x `S.insert` (y `S.insert` seen))
                                             (x `S.delete` (y `S.delete` unseen)) edges
 
+permutations :: [a] -> [[a]]
+permutations [] = [[]]
+permutations (x:xs) = concatMap chapo (permutations xs)
+  where
+    chapo [] = [[x]]
+    chapo (y:ys) = [(x:y:ys)] ++ (fmap (y:) $ chapo ys)
+
+iso :: (Ord a) => Graph a -> Graph a -> Maybe [(a, a)]
+iso g1@(Graph nodes1 edges1) g2@(Graph nodes2 edges2)
+  | length nodes1 /= length nodes2 = Nothing
+  | length edges1 /= length edges2 = Nothing
+  | otherwise = find isIso mappings
+    where
+      perms1 = permutations nodes1
+      mappings = fmap (zip nodes2) perms1
+      graphEq (Graph ns1 es1) (Graph ns2 es2) =
+        (S.fromList ns1) == (S.fromList ns2) &&
+        (S.fromList es1) == (S.fromList es2)
+      mapGraph mapping (Graph nodes edges) =
+        Graph (fmap (mapping M.!) nodes) (fmap (\(a, b) -> (mapping M.! a, mapping M.! b)) edges)
+      isIso mapping = (mapGraph (M.fromList mapping) g2) `graphEq` g1
+
+kColor :: Ord a => Graph a -> [(a, Int)]
+kColor g@(Graph nodes edges) = M.toList
+                             . foldl' bestColor M.empty
+                             $ sortedNodes
+  where
+    bestColor m n = M.insert n (findBestColor 1) m
+      where findBestColor i
+              | hasConflict = findBestColor (i+1)
+              | otherwise = i
+              where adjNodes = n `MM.lookup` adjacentNodes
+                    hasConflict = any (\n' -> fromMaybe False $ (== i) <$> (n' `M.lookup` m)) adjNodes
+
+    sortedNodes = fmap snd
+                . sortBy (\(a,_) (b,_) -> compare b a)
+                . zip (fmap degree nodes)
+                $ nodes
+
+    adjacentNodes = MM.fromList
+                  . concatMap (\(a, as) -> zip (repeat a) as)
+                  . getArcs
+                  . graphToAdj
+                  $ g
+      where getArcs (Adj arcs) = arcs
+
+    degree node =
+      length $ filter (\(a, b) -> a == node || b == node) edges
+
 main :: IO ()
 main = hspec $ do
   describe "graphToAdj | adjToGraph" $ do
@@ -136,3 +189,24 @@ main = hspec $ do
           edges = [(1,2,12),(1,3,34),(1,5,78),(2,4,55),(2,5,32),(3,4,61),(3,5,44),(4,5,93)]
        in prim nodes edges `shouldSatisfy`
             \(Just p) -> p `setEq` [(1,2,12),(1,3,34),(2,4,55),(2,5,32)]
+
+  describe "permutations" $ do
+    it "works" $ do
+      length (permutations ([1..5]::[Int])) `shouldBe` product ([1..5]::[Int])
+
+  describe "iso" $ do
+    it "works" $ do
+      let graphG1 = Graph ([1,2,3,4,5,6,7,8]::[Int])
+                          [(1,5),(1,6),(1,7),(2,5),(2,6),(2,8),(3,5),(3,7),(3,8),(4,6),(4,7),(4,8)]
+          graphH1 = Graph ([1,2,3,4,5,6,7,8]::[Int])
+                          [(1,2),(1,4),(1,5),(6,2),(6,5),(6,7),(8,4),(8,5),(8,7),(3,2),(3,4),(3,7)]
+      iso graphG1 graphH1 `shouldSatisfy` isJust
+
+  describe "kColor" $ do
+    it "works" $ do
+      let g = Graph "abcdefghij"
+                    [('a','b'),('a','e'),('a','f'),('b','c'),('b','g'),
+                     ('c','d'),('c','h'),('d','e'),('d','i'),('e','j'),
+                     ('f','h'),('f','i'),('g','i'),('g','j'),('h','j')]
+      kColor g `shouldBe` [('a',1),('b',2),('c',1),('d',2),('e',3),
+                           ('f',2),('g',1),('h',3),('i',3),('j',2)]
