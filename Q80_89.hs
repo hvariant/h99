@@ -2,6 +2,7 @@
 
 module Q80_89 where
 
+import Control.Arrow (second)
 import Data.Maybe (isJust, fromMaybe)
 import Data.Bool (bool)
 import Data.Tuple (swap)
@@ -121,6 +122,13 @@ iso g1@(Graph nodes1 edges1) g2@(Graph nodes2 edges2)
         Graph (fmap (mapping M.!) nodes) (fmap (\(a, b) -> (mapping M.! a, mapping M.! b)) edges)
       isIso mapping = (mapGraph (M.fromList mapping) g2) `graphEq` g1
 
+adjacentNodes :: (Ord a) => Graph a -> MM.MultiMap a a
+adjacentNodes = MM.fromList
+              . concatMap (\(a, as) -> zip (repeat a) as)
+              . getArcs
+              . graphToAdj
+  where getArcs (Adj arcs) = arcs
+
 kColor :: Ord a => Graph a -> [(a, Int)]
 kColor g@(Graph nodes edges) = M.toList
                              . foldl' bestColor M.empty
@@ -130,7 +138,7 @@ kColor g@(Graph nodes edges) = M.toList
       where findBestColor i
               | hasConflict = findBestColor (i+1)
               | otherwise = i
-              where adjNodes = n `MM.lookup` adjacentNodes
+              where adjNodes = n `MM.lookup` (adjacentNodes g)
                     hasConflict = any (\n' -> fromMaybe False $ (== i) <$> (n' `M.lookup` m)) adjNodes
 
     sortedNodes = fmap snd
@@ -138,15 +146,31 @@ kColor g@(Graph nodes edges) = M.toList
                 . zip (fmap degree nodes)
                 $ nodes
 
-    adjacentNodes = MM.fromList
-                  . concatMap (\(a, as) -> zip (repeat a) as)
-                  . getArcs
-                  . graphToAdj
-                  $ g
-      where getArcs (Adj arcs) = arcs
-
     degree node =
       length $ filter (\(a, b) -> a == node || b == node) edges
+
+depthFirst' :: Ord a => S.Set a -> a -> [a] -> MM.MultiMap a a -> (S.Set a, [a])
+depthFirst' vs cur acc adjNodes =
+  foldl' step (cur `S.insert` vs, cur : acc) nexts
+  where nexts = filter (not . (`S.member` vs)) (cur `MM.lookup` adjNodes)
+        step (vs', acc') n
+          | n `S.member` vs' = (vs', acc')
+          | otherwise = depthFirst' vs' n acc' adjNodes
+
+depthFirst :: Ord a => Graph a -> a -> [a]
+depthFirst g s = reverse
+               . snd
+               . depthFirst' S.empty s []
+               $ adjNodes
+  where adjNodes = adjacentNodes g
+
+connectedComponents :: Ord a => Graph a -> [[a]]
+connectedComponents g@(Graph ns _) = snd . foldr step (S.empty, []) $ ns
+  where adjNodes = adjacentNodes g
+        step n (vs, comps)
+          | n `S.member` vs = (vs, comps)
+          | otherwise = second (:comps) $ depthFirst' vs n [] adjNodes
+
 
 main :: IO ()
 main = hspec $ do
@@ -162,10 +186,9 @@ main = hspec $ do
   describe "paths" $ do
     it "works" $ do
       let setEq xs ys = (sort xs) == (sort ys)
-       in paths (1::Int) 4 [(1,2),(2,3),(1,3),(3,4),(4,2),(5,6)] `shouldSatisfy`
+      paths (1::Int) 4 [(1,2),(2,3),(1,3),(3,4),(4,2),(5,6)] `shouldSatisfy`
             (\ps -> setEq ps [[1,2,3,4],[1,3,4]])
-      let setEq xs ys = (sort xs) == (sort ys)
-       in paths (1::Int) 1 [(1,2),(2,3),(3,1),(3,4),(4,2),(5,6)] `shouldSatisfy`
+      paths (1::Int) 1 [(1,2),(2,3),(3,1),(3,4),(4,2),(5,6)] `shouldSatisfy`
             (\ps -> setEq ps [[1], [1,2,3,1]])
       paths (2::Int) 6 [(1,2),(2,3),(1,3),(3,4),(4,2),(5,6)] `shouldBe` []
 
@@ -210,3 +233,21 @@ main = hspec $ do
                      ('f','h'),('f','i'),('g','i'),('g','j'),('h','j')]
       kColor g `shouldBe` [('a',1),('b',2),('c',1),('d',2),('e',3),
                            ('f',2),('g',1),('h',3),('i',3),('j',2)]
+
+  describe "depthFirst" $ do
+    it "works" $ do
+      let setEq xs ys = (sort xs) == (sort ys)
+      let g = Graph [1,2,3,4,5,6,7] [(1,2),(2,3),(1,4),(3,4),(5,2),(5,4),(6,7)]
+      depthFirst g (1::Int) `shouldSatisfy` \s -> s `setEq` [1,2,3,4,5]
+      depthFirst g (2::Int) `shouldSatisfy` \s -> s `setEq` [1,2,3,4,5]
+      depthFirst g (3::Int) `shouldSatisfy` \s -> s `setEq` [1,2,3,4,5]
+      depthFirst g (4::Int) `shouldSatisfy` \s -> s `setEq` [1,2,3,4,5]
+      depthFirst g (5::Int) `shouldSatisfy` \s -> s `setEq` [1,2,3,4,5]
+      depthFirst g (6::Int) `shouldSatisfy` \s -> s `setEq` [6,7]
+      depthFirst g (7::Int) `shouldSatisfy` \s -> s `setEq` [6,7]
+
+  describe "connectedComponents" $ do
+    it "works" $ do
+      let setSetEq xs ys = (sort . fmap sort $ xs) == (sort . fmap sort $ ys)
+      let g = Graph ([1,2,3,4,5,6,7]::[Int]) [(1,2),(2,3),(1,4),(3,4),(5,2),(5,4),(6,7)]
+      connectedComponents g `shouldSatisfy` \ss -> setSetEq ss [[1,2,3,4,5],[6,7]]
